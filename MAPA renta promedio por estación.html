@@ -1,0 +1,229 @@
+
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8"/>
+        <title>Kepler.gl embedded map</title>
+
+        <!--Uber Font-->
+        <link rel="stylesheet" href="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/uber-fonts/4.0.0/superfine.css">
+
+        <!--MapBox css-->
+        <link href="https://api.tiles.mapbox.com/mapbox-gl-js/v1.1.1/mapbox-gl.css" rel="stylesheet">
+
+        <!-— facebook open graph tags -->
+        <meta property="og:url" content="http://kepler.gl/" />
+        <meta property="og:title" content="Large-scale WebGL-powered Geospatial Data Visualization Tool" />
+        <meta property="og:description" content="Kepler.gl is a powerful web-based geospatial data analysis tool. Built on a high performance rendering engine and designed for large-scale data sets." />
+        <meta property="og:site_name" content="kepler.gl" />
+        <meta property="og:image" content="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/kepler.gl-meta-tag.png" />
+        <meta property="og:image:type" content="image/png" />
+        <meta property="og:image:width" content="800" />
+        <meta property="og:image:height" content="800" />
+
+        <!-— twitter card tags -->
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:site" content="@uber">
+        <meta name="twitter:creator" content="@uber">
+        <meta name="twitter:title" content="Large-scale WebGL-powered Geospatial Data Visualization Tool">
+        <meta name="twitter:description" content="Kepler.gl is a powerful web-based geospatial data analysis tool. Built on a high performance rendering engine and designed for large-scale data sets.">
+        <meta name="twitter:image" content="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/kepler.gl-meta-tag.png" />
+
+        <!-- Load React/Redux -->
+        <script src="https://unpkg.com/react@16.8.4/umd/react.production.min.js" crossorigin></script>
+        <script src="https://unpkg.com/react-dom@16.8.4/umd/react-dom.production.min.js" crossorigin></script>
+        <script src="https://unpkg.com/redux@3.7.2/dist/redux.js" crossorigin></script>
+        <script src="https://unpkg.com/react-redux@7.1.3/dist/react-redux.min.js" crossorigin></script>
+        <script src="https://unpkg.com/styled-components@4.1.3/dist/styled-components.min.js" crossorigin></script>
+
+        <!-- Load Kepler.gl -->
+        <script src="https://unpkg.com/kepler.gl@2.5.5/umd/keplergl.min.js" crossorigin></script>
+
+        <style type="text/css">
+          body {margin: 0; padding: 0; overflow: hidden;}
+        </style>
+
+        <!--MapBox token-->
+        <script>
+          /**
+           * Provide your MapBox Token
+           **/
+          const MAPBOX_TOKEN = 'pk.eyJ1IjoidWNmLW1hcGJveCIsImEiOiJja3RpeXpzd2oxNzNtMm9wYXQ4enY1bGJ5In0.PEZqaPuuhzPDN9RneRscqQ';
+          const WARNING_MESSAGE = 'Please Provide a Mapbox Token in order to use Kepler.gl. Edit this file and fill out MAPBOX_TOKEN with your access key';
+        </script>
+
+        <!-- GA: Delete this as you wish, However to pat ourselves on the back, we only track anonymous pageview to understand how many people are using kepler.gl. -->
+        <script>
+          (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+          (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+          m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+          })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+          ga('create', 'UA-64694404-19', {
+            'storage': 'none',
+            'clientId': localStorage.getItem('ga:clientId')
+          });
+          ga(function(tracker) {
+              localStorage.setItem('ga:clientId', tracker.get('clientId'));
+          });
+          ga('set', 'checkProtocolTask', null); // Disable file protocol checking.
+          ga('set', 'checkStorageTask', null); // Disable cookie storage checking.
+          ga('set', 'historyImportTask', null); // Disable history checking (requires reading from cookies).
+          ga('set', 'page', 'keplergl-html');
+          ga('send', 'pageview');
+        </script>
+      </head>
+      <body>
+        <!-- We will put our React component inside this div. -->
+        <div id="app">
+          <!-- Kepler.gl map will be placed here-->
+        </div>
+
+        <!-- Load our React component. -->
+        <script>
+          /* Validate Mapbox Token */
+          if ((MAPBOX_TOKEN || '') === '' || MAPBOX_TOKEN === 'PROVIDE_MAPBOX_TOKEN') {
+            alert(WARNING_MESSAGE);
+          }
+
+          /** STORE **/
+          const reducers = (function createReducers(redux, keplerGl) {
+            return redux.combineReducers({
+              // mount keplerGl reducer
+              keplerGl: keplerGl.keplerGlReducer.initialState({
+                uiState: {
+                  readOnly: true,
+                  currentModal: null
+                }
+              })
+            });
+          }(Redux, KeplerGl));
+
+          const middleWares = (function createMiddlewares(keplerGl) {
+            return keplerGl.enhanceReduxMiddleware([
+              // Add other middlewares here
+            ]);
+          }(KeplerGl));
+
+          const enhancers = (function craeteEnhancers(redux, middles) {
+            return redux.applyMiddleware(...middles);
+          }(Redux, middleWares));
+
+          const store = (function createStore(redux, enhancers) {
+            const initialState = {};
+
+            return redux.createStore(
+              reducers,
+              initialState,
+              redux.compose(enhancers)
+            );
+          }(Redux, enhancers));
+          /** END STORE **/
+
+          /** COMPONENTS **/
+          var KeplerElement = (function makeKeplerElement(react, keplerGl, mapboxToken) {
+            var LogoSvg = function LogoSvg() {
+              return react.createElement(
+                "div",
+                { className: "logo-container", style: {position: 'fixed', zIndex: 10000, padding: '4px'} },
+                  react.createElement(
+                    "svg",
+                    {
+                      className: "kepler_gl__logo",
+                      width: "107px",
+                      height: "21px",
+                      viewBox: "0 0 124 24"
+                    },
+                    react.createElement(
+                      "g",
+                      { transform: "translate(13.500000, 13.500000) rotate(45.000000) translate(-13.500000, -13.500000) translate(4.000000, 4.000000)" },
+                      react.createElement("rect", { x: "0", y: "6", transform: "matrix(2.535181e-06 1 -1 2.535181e-06 18.1107 6.0369)", fill: "#535C6C", width: "12.1", height: "12.1" }),
+                      react.createElement("rect", { x: "6", y: "0", transform: "matrix(2.535182e-06 1 -1 2.535182e-06 18.1107 -6.0369)", fill:"#1FBAD6", width: "12.1", height: "12.1" })
+                    ),
+                    react.createElement(
+                      "g",
+                      {},
+                      react.createElement("path", { fill:"#1FBAD6", d: "M39,8.7h2.2l-2.8,4.2l2.9,5.1H39l-2.4-4.2h-1.3V18h-2V5l2-0.1v7.3h1.3L39,8.7z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M42.4,13.3c0-1.5,0.4-2.7,1.1-3.5s1.8-1.2,3.1-1.2c1.3,0,2.2,0.4,2.8,1.1c0.6,0.7,0.9,1.8,0.9,3.3 c0,0.4,0,0.8,0,1.1h-5.8c0,1.6,0.8,2.4,2.4,2.4c1,0,2-0.2,2.9-0.6l0.2,1.7c-0.4,0.2-0.9,0.4-1.4,0.5s-1.1,0.2-1.7,0.2 c-1.5,0-2.6-0.4-3.3-1.2C42.8,16.1,42.4,14.9,42.4,13.3z M46.6,10.1c-0.7,0-1.2,0.2-1.5,0.5c-0.4,0.4-0.6,0.9-0.6,1.7h4 c0-0.8-0.2-1.4-0.5-1.7S47.2,10.1,46.6,10.1z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M57.1,18.2c-1,0-1.8-0.3-2.3-0.9l0,0l0,1.3v2.5h-2V8.7h1.5l0.3,0.9h0c0.3-0.3,0.7-0.6,1.2-0.7 c0.4-0.2,0.9-0.3,1.4-0.3c1.2,0,2.1,0.4,2.7,1.1c0.6,0.7,0.9,2,0.9,3.7c0,1.6-0.3,2.8-1,3.7C59.2,17.8,58.3,18.2,57.1,18.2z M56.7,10.3c-0.4,0-0.8,0.1-1.1,0.2c-0.3,0.2-0.6,0.4-0.8,0.7v4.3c0.2,0.3,0.4,0.5,0.7,0.7c0.3,0.2,0.7,0.3,1.1,0.3 c0.7,0,1.2-0.2,1.6-0.7c0.4-0.5,0.5-1.3,0.5-2.5c0-0.8-0.1-1.4-0.2-1.8s-0.4-0.7-0.7-0.9C57.6,10.4,57.2,10.3,56.7,10.3z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M63.2,16V5l2-0.1v10.8c0,0.3,0.1,0.5,0.2,0.6c0.1,0.1,0.3,0.2,0.6,0.2c0.3,0,0.6,0,0.9-0.1V18 c-0.4,0.1-1,0.2-1.6,0.2c-0.8,0-1.3-0.2-1.7-0.5S63.2,16.8,63.2,16z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M68.2,13.3c0-1.5,0.4-2.7,1.1-3.5c0.7-0.8,1.8-1.2,3.1-1.2c1.3,0,2.2,0.4,2.8,1.1c0.6,0.7,0.9,1.8,0.9,3.3 c0,0.4,0,0.8,0,1.1h-5.8c0,1.6,0.8,2.4,2.4,2.4c1,0,2-0.2,2.9-0.6l0.2,1.7c-0.4,0.2-0.9,0.4-1.4,0.5s-1.1,0.2-1.7,0.2 c-1.5,0-2.6-0.4-3.3-1.2C68.6,16.1,68.2,14.9,68.2,13.3z M72.4,10.1c-0.7,0-1.2,0.2-1.5,0.5c-0.4,0.4-0.6,0.9-0.6,1.7h4 c0-0.8-0.2-1.4-0.5-1.7S73,10.1,72.4,10.1z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M80.2,8.7l0.1,1.7h0c0.3-0.6,0.7-1.1,1.1-1.4c0.4-0.3,1-0.5,1.6-0.5c0.4,0,0.7,0,1,0.1l-0.1,2 c-0.3-0.1-0.7-0.2-1-0.2c-0.7,0-1.3,0.3-1.7,0.8c-0.4,0.5-0.7,1.2-0.7,2.1V18h-2V8.7H80.2z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M83.8,17c0-0.8,0.4-1.2,1.2-1.2c0.8,0,1.2,0.4,1.2,1.2c0,0.8-0.4,1.1-1.2,1.1C84.2,18.2,83.8,17.8,83.8,17z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M88.5,18.7c0-0.8,0.4-1.4,1.2-1.8c-0.6-0.3-0.9-0.8-0.9-1.5c0-0.7,0.4-1.2,1.1-1.6c-0.3-0.3-0.6-0.6-0.7-0.9 c-0.2-0.4-0.2-0.8-0.2-1.3c0-1,0.3-1.8,0.9-2.3c0.6-0.5,1.6-0.8,2.8-0.8c0.5,0,1,0,1.4,0.1c0.4,0.1,0.8,0.2,1.1,0.4l2.4-0.2v1.5 h-1.5c0.2,0.4,0.2,0.8,0.2,1.3c0,1-0.3,1.7-0.9,2.2s-1.5,0.8-2.7,0.8c-0.7,0-1.2-0.1-1.6-0.2c-0.1,0.1-0.2,0.2-0.3,0.3 c-0.1,0.1-0.1,0.2-0.1,0.4c0,0.2,0.1,0.3,0.2,0.4c0.1,0.1,0.3,0.2,0.6,0.2l2.7,0.2c1,0.1,1.7,0.3,2.2,0.6c0.5,0.3,0.8,0.9,0.8,1.7 c0,0.6-0.2,1.1-0.5,1.5c-0.4,0.4-0.9,0.8-1.5,1c-0.7,0.2-1.5,0.4-2.4,0.4c-1.3,0-2.3-0.2-3-0.6C88.8,20.1,88.5,19.5,88.5,18.7z M95.1,18.4c0-0.3-0.1-0.5-0.3-0.7s-0.6-0.2-1.1-0.3l-2.7-0.3c-0.2,0.1-0.4,0.3-0.5,0.5c-0.1,0.2-0.2,0.4-0.2,0.6 c0,0.4,0.2,0.8,0.5,1c0.4,0.2,1,0.3,1.8,0.3C94.2,19.5,95.1,19.2,95.1,18.4z M94.3,11.5c0-0.6-0.1-1-0.4-1.2 c-0.3-0.2-0.7-0.3-1.3-0.3c-0.7,0-1.1,0.1-1.4,0.3c-0.3,0.2-0.4,0.6-0.4,1.2s0.1,1,0.4,1.2c0.3,0.2,0.7,0.3,1.4,0.3 c0.6,0,1.1-0.1,1.3-0.4S94.3,12,94.3,11.5z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M99.4,16V5l2-0.1v10.8c0,0.3,0.1,0.5,0.2,0.6c0.1,0.1,0.3,0.2,0.6,0.2c0.3,0,0.6,0,0.9-0.1V18 c-0.4,0.1-1,0.2-1.6,0.2c-0.8,0-1.3-0.2-1.7-0.5S99.4,16.8,99.4,16z" })
+                    )
+                  )
+                );
+              };
+
+            return function App() {
+              var rootElm = react.useRef(null);
+              var _useState = react.useState({
+                width: window.innerWidth,
+                height: window.innerHeight
+              });
+              var windowDimension = _useState[0];
+              var setDimension = _useState[1];
+              react.useEffect(function sideEffect(){
+                function handleResize() {
+                  setDimension({width: window.innerWidth, height: window.innerHeight});
+                };
+                window.addEventListener('resize', handleResize);
+                return function() {window.removeEventListener('resize', handleResize);};
+              }, []);
+              return react.createElement(
+                'div',
+                {style: {position: 'absolute', left: 0, width: '100vw', height: '100vh'}},
+                LogoSvg(),
+                react.createElement(keplerGl.KeplerGl, {
+                  mapboxApiAccessToken: mapboxToken,
+                  id: "map",
+                  width: windowDimension.width,
+                  height: windowDimension.height
+                })
+              )
+            }
+          }(React, KeplerGl, MAPBOX_TOKEN));
+
+          const app = (function createReactReduxProvider(react, reactRedux, KeplerElement) {
+            return react.createElement(
+              reactRedux.Provider,
+              {store},
+              react.createElement(KeplerElement, null)
+            )
+          }(React, ReactRedux, KeplerElement));
+          /** END COMPONENTS **/
+
+          /** Render **/
+          (function render(react, reactDOM, app) {
+            reactDOM.render(app, document.getElementById('app'));
+          }(React, ReactDOM, app));
+        </script>
+        <!-- The next script will show how to interact directly with Kepler map store -->
+        <script>
+          /**
+           * Customize map.
+           * In the following section you can use the store object to dispatch Kepler.gl actions
+           * to add new data and customize behavior
+           */
+          (function customize(keplerGl, store) {
+            const datasets = [{"version":"v1","data":{"id":"i62x82dq8","label":"STC_Metro_linea 3.csv","color":[162,212,171],"allData":[["Indios Verdes","Gustavo A. Madero","Santa Isabel Tola",19.4953376186457,-99.1195099382592,17707,2780000,"19.4953376186457,-99.1195099382592"],["Deportivo 18 de Marzo","Gustavo A. Madero","Tepeyac Insurgentes",19.4851141513425,-99.1254979171246,19816,3640000,"19.4851141513425,-99.1254979171246 "],["Potrero","Gustavo A. Madero","Guadalupe Insurgentes",19.4771920114807,-99.132013682994,16961,1240000,"19.4771920114807,-99.132013682994 "],["La Raza","Gustavo A. Madero","Vallejo",19.468880133789,-99.1395062302247,36890,1340000,"19.468880133789,-99.1395062302247 "],["Tlatelolco","Cuauhtémoc","Unidad Nonoalco-Tlatelolco",19.4550581428037,-99.1431330841341,8464,639000,"19.4550581428037,-99.1431330841341 "],["Guerrero","Cuauhtémoc","Guerrero",19.4447263348284,-99.1451933440698,21379,999000,"19.4447263348284,-99.1451933440698 "],["Hidalgo","Cuauhtémoc","Tabacalera",19.4373823922626,-99.1467827213369,5140,5020000,"19.4373823922626,-99.1467827213369 "],["Juárez","Cuauhtémoc","Centro",19.4332503464504,-99.1476833057632,19771,912000,"19.4332503464504,-99.1476833057632 "],["Balderas","Cuauhtémoc","Doctores",19.426480093367,-99.1490604800387,9182,2710000,"19.426480093367,-99.1490604800387 "],["Niños Héroes-Poder Judicial CDMX","Cuauhtémoc","Doctores",19.4194843101919,-99.1503642652194,9182,2710000,"19.4194843101919,-99.1503642652194 "],["Hospital General","Cuauhtémoc","Doctores",19.4137587535794,-99.153245361779,9182,2710000,"19.4137587535794,-99.153245361779 "],["Centro Médico","Cuauhtémoc","Roma Sur",19.4074531474438,-99.1551346895237,39349,8360000,"19.4074531474438,-99.1551346895237 "],["Etiopía/Plaza de la Transparencia","Benito Juárez","Narvarte Poniente",19.3959205316174,-99.1560314153493,34431,7860000,"19.3959205316174,-99.1560314153493 "],["Eugenia","Benito Juárez","Del Valle Centro",19.3861685181154,-99.1572045975661,35315,8340000,"19.3861685181154,-99.1572045975661 "],["División del Norte","Benito Juárez","Santa Cruz Atoyac",19.3791844354023,-99.1594791658047,19675,4130000,"19.3791844354023,-99.1594791658047 "],["Zapata","Benito Juárez","Santa Cruz Atoyac",19.3711917865544,-99.1645102976557,19675,4130000,"19.3711917865544,-99.1645102976557 "],["Coyoacán","Benito Juárez","Xoco",19.3613590773501,-99.1708615273429,25577,6890000,"19.3613590773501,-99.1708615273429 "],["Viveros-Derechos Humanos","Álvaro Obregón y Coyoacán","Barrio de Santa Catarina",19.3534590245247,-99.1760010860638,59024,21600000,"19.3534590245247,-99.1760010860638 "],["Miguel Ángel de Quevedo","Coyoacán","Chimalistac",19.3462518330859,-99.1807566556441,50822,19600000,"19.3462518330859,-99.1807566556441 "],["Copilco","Coyoacán","Romero de Terreros",19.3360992748033,-99.176973595216,39349,8760000,"19.3360992748033,-99.176973595216 "],["Universidad","Coyoacán","Pedregal de Santo Domingo",19.3243534828943,-99.1739384555895,12789,1540000,"19.3243534828943,-99.1739384555895 "]],"fields":[{"name":"ESTACIÓN","type":"string","format":"","analyzerType":"STRING"},{"name":"ALCALDIAS","type":"string","format":"","analyzerType":"STRING"},{"name":"COLONIA","type":"string","format":"","analyzerType":"STRING"},{"name":"LAT","type":"real","format":"","analyzerType":"FLOAT"},{"name":"LONG","type":"real","format":"","analyzerType":"FLOAT"},{"name":"RENTA PROMEDIO","type":"integer","format":"","analyzerType":"INT"},{"name":"PRECIO PROMEDIO PREDIO","type":"integer","format":"","analyzerType":"INT"},{"name":"GEO","type":"geojson","format":"","analyzerType":"PAIR_GEOMETRY_FROM_STRING"}]}},{"version":"v1","data":{"id":"aay4s7psok","label":"Línea 3.geojson","color":[143,47,191],"allData":[[{"type":"Feature","properties":{"_id":8,"id":7,"name":"Línea 3","descrpt":null,"altitdm":null,"g_pnt_2":"19.4104163175,-99.1536353159"},"geometry":{"type":"MultiLineString","coordinates":[[[-99.1739595,19.3244574],[-99.1766363,19.3359178],[-99.1810191,19.3468358],[-99.1760355,19.3537143],[-99.1704994,19.3614528],[-99.1649204,19.3707294],[-99.1591108,19.3798486],[-99.1574532,19.3855061],[-99.1562569,19.3956264],[-99.1538858,19.4135984],[-99.1505706,19.4195583],[-99.149074,19.42741],[-99.1478777,19.4332682],[-99.1471374,19.4373152],[-99.1453725,19.4451408],[-99.1427922,19.4551006],[-99.1369236,19.4702742],[-99.1321707,19.4769704],[-99.1265702,19.4837877],[-99.1209751134766,19.4906856228133],[-99.1194999,19.4953987]]]}},8,7,"Línea 3",null,null,"19.4104163175,-99.1536353159"]],"fields":[{"name":"_geojson","type":"geojson","format":"","analyzerType":"GEOMETRY"},{"name":"_id","type":"integer","format":"","analyzerType":"INT"},{"name":"id","type":"integer","format":"","analyzerType":"INT"},{"name":"name","type":"string","format":"","analyzerType":"STRING"},{"name":"descrpt","type":"string"},{"name":"altitdm","type":"string"},{"name":"g_pnt_2","type":"geojson","format":"","analyzerType":"PAIR_GEOMETRY_FROM_STRING"}]}},{"version":"v1","data":{"id":"ptgyyrmzm","label":"Línea 3 ESTACIONES.geojson","color":[0,92,255],"allData":[[{"type":"Feature","properties":{"_id":25,"id":24,"g_pnt_2":"19.4686293297,-99.139012775","geo_shp":{"type":"Point","coordinates":[-99.139013,19.468629]},"name":"La Raza","descrpt":"Linea 3","lon":-99.1390127750316,"lat":19.4686293296662,"line_st":"Linea 3-La Raza"},"geometry":{"type":"Point","coordinates":[-99.1390127750316,19.468629329666168]}},25,24,"19.4686293297,-99.139012775",{"type":"Point","coordinates":[-99.139013,19.468629]},"La Raza","Linea 3",-99.1390127750316,19.4686293296662,"Linea 3-La Raza"],[{"type":"Feature","properties":{"_id":26,"id":25,"g_pnt_2":"19.4446131162,-99.145201195","geo_shp":{"type":"Point","coordinates":[-99.145201,19.444613]},"name":"Guerrero","descrpt":"Linea 3","lon":-99.1452011949773,"lat":19.444613116179,"line_st":"Linea 3-Guerrero"},"geometry":{"type":"Point","coordinates":[-99.14520119497732,19.444613116178992]}},26,25,"19.4446131162,-99.145201195",{"type":"Point","coordinates":[-99.145201,19.444613]},"Guerrero","Linea 3",-99.1452011949773,19.444613116179,"Linea 3-Guerrero"],[{"type":"Feature","properties":{"_id":27,"id":26,"g_pnt_2":"19.4332619052,-99.1476786992","geo_shp":{"type":"Point","coordinates":[-99.147679,19.433262]},"name":"Juárez","descrpt":"Linea 3","lon":-99.1476786992318,"lat":19.4332619052046,"line_st":"Linea 3-Juárez"},"geometry":{"type":"Point","coordinates":[-99.14767869923176,19.433261905204567]}},27,26,"19.4332619052,-99.1476786992",{"type":"Point","coordinates":[-99.147679,19.433262]},"Juárez","Linea 3",-99.1476786992318,19.4332619052046,"Linea 3-Juárez"],[{"type":"Feature","properties":{"_id":28,"id":27,"g_pnt_2":"19.3954822792,-99.1560082582","geo_shp":{"type":"Point","coordinates":[-99.156008,19.395482]},"name":"Etiopía","descrpt":"Linea 3","lon":-99.1560082581707,"lat":19.3954822791895,"line_st":"Linea 3-Etiopía"},"geometry":{"type":"Point","coordinates":[-99.15600825817071,19.395482279189448]}},28,27,"19.3954822792,-99.1560082582",{"type":"Point","coordinates":[-99.156008,19.395482]},"Etiopía","Linea 3",-99.1560082581707,19.3954822791895,"Linea 3-Etiopía"],[{"type":"Feature","properties":{"_id":29,"id":28,"g_pnt_2":"19.3540509007,-99.1753961361","geo_shp":{"type":"Point","coordinates":[-99.175396,19.354051]},"name":"Viveros","descrpt":"Linea 3","lon":-99.1753961361387,"lat":19.3540509007308,"line_st":"Linea 3-Viveros"},"geometry":{"type":"Point","coordinates":[-99.17539613613872,19.354050900730748]}},29,28,"19.3540509007,-99.1753961361",{"type":"Point","coordinates":[-99.175396,19.354051]},"Viveros","Linea 3",-99.1753961361387,19.3540509007308,"Linea 3-Viveros"],[{"type":"Feature","properties":{"_id":30,"id":29,"g_pnt_2":"19.3361231843,-99.1765381663","geo_shp":{"type":"Point","coordinates":[-99.176538,19.336123]},"name":"Copilco","descrpt":"Linea 3","lon":-99.1765381662618,"lat":19.3361231842527,"line_st":"Linea 3-Copilco"},"geometry":{"type":"Point","coordinates":[-99.1765381662618,19.33612318425268]}},30,29,"19.3361231843,-99.1765381663",{"type":"Point","coordinates":[-99.176538,19.336123]},"Copilco","Linea 3",-99.1765381662618,19.3361231842527,"Linea 3-Copilco"],[{"type":"Feature","properties":{"_id":96,"id":95,"g_pnt_2":"19.4546942207,-99.1429206369","geo_shp":{"type":"Point","coordinates":[-99.142921,19.454694]},"name":"Tlatelolco","descrpt":"Linea 3","lon":-99.1429206369016,"lat":19.4546942206947,"line_st":"Linea 3-Tlatelolco"},"geometry":{"type":"Point","coordinates":[-99.14292063690156,19.454694220694673]}},96,95,"19.4546942207,-99.1429206369",{"type":"Point","coordinates":[-99.142921,19.454694]},"Tlatelolco","Linea 3",-99.1429206369016,19.4546942206947,"Linea 3-Tlatelolco"],[{"type":"Feature","properties":{"_id":97,"id":96,"g_pnt_2":"19.41948544,-99.1503702785","geo_shp":{"type":"Point","coordinates":[-99.15037,19.419485]},"name":"Niños Héroes","descrpt":"Linea 3","lon":-99.1503702784974,"lat":19.4194854399928,"line_st":"Linea 3-Niños Héroes"},"geometry":{"type":"Point","coordinates":[-99.15037027849736,19.419485439992833]}},97,96,"19.41948544,-99.1503702785",{"type":"Point","coordinates":[-99.15037,19.419485]},"Niños Héroes","Linea 3",-99.1503702784974,19.4194854399928,"Linea 3-Niños Héroes"],[{"type":"Feature","properties":{"_id":98,"id":97,"g_pnt_2":"19.4134607562,-99.1538678732","geo_shp":{"type":"Point","coordinates":[-99.153868,19.413461]},"name":"Hospital General","descrpt":"Linea 3","lon":-99.1538678731986,"lat":19.4134607562453,"line_st":"Linea 3-Hospital General"},"geometry":{"type":"Point","coordinates":[-99.15386787319862,19.413460756245335]}},98,97,"19.4134607562,-99.1538678732",{"type":"Point","coordinates":[-99.153868,19.413461]},"Hospital General","Linea 3",-99.1538678731986,19.4134607562453,"Linea 3-Hospital General"],[{"type":"Feature","properties":{"_id":99,"id":98,"g_pnt_2":"19.3857282455,-99.1572630799","geo_shp":{"type":"Point","coordinates":[-99.157263,19.385728]},"name":"Eugenia","descrpt":"Linea 3","lon":-99.157263079939,"lat":19.3857282455487,"line_st":"Linea 3-Eugenia"},"geometry":{"type":"Point","coordinates":[-99.15726307993894,19.385728245548655]}},99,98,"19.3857282455,-99.1572630799",{"type":"Point","coordinates":[-99.157263,19.385728]},"Eugenia","Linea 3",-99.157263079939,19.3857282455487,"Linea 3-Eugenia"],[{"type":"Feature","properties":{"_id":100,"id":99,"g_pnt_2":"19.3706923942,-99.1648061769","geo_shp":{"type":"Point","coordinates":[-99.164806,19.370692]},"name":"Zapata","descrpt":"Linea 3","lon":-99.1648061768838,"lat":19.370692394238,"line_st":"Linea 3-Zapata"},"geometry":{"type":"Point","coordinates":[-99.16480617688376,19.370692394237963]}},100,99,"19.3706923942,-99.1648061769",{"type":"Point","coordinates":[-99.164806,19.370692]},"Zapata","Linea 3",-99.1648061768838,19.370692394238,"Linea 3-Zapata"],[{"type":"Feature","properties":{"_id":101,"id":100,"g_pnt_2":"19.3466867026,-99.1806795061","geo_shp":{"type":"Point","coordinates":[-99.18068,19.346687]},"name":"Miguel A. de Quevedo","descrpt":"Linea 3","lon":-99.1806795061138,"lat":19.3466867025917,"line_st":"Linea 3-Miguel Ángel de Quevedo"},"geometry":{"type":"Point","coordinates":[-99.18067950611376,19.346686702591665]}},101,100,"19.3466867026,-99.1806795061",{"type":"Point","coordinates":[-99.18068,19.346687]},"Miguel A. de Quevedo","Linea 3",-99.1806795061138,19.3466867025917,"Linea 3-Miguel Ángel de Quevedo"],[{"type":"Feature","properties":{"_id":157,"id":156,"g_pnt_2":"19.4952232414,-99.1195023109","geo_shp":{"type":"Point","coordinates":[-99.119502,19.495223]},"name":"Indios Verdes","descrpt":"Linea 3","lon":-99.1195023109161,"lat":19.4952232414193,"line_st":"Linea 3-Indios Verdes"},"geometry":{"type":"Point","coordinates":[-99.11950231091608,19.495223241419257]}},157,156,"19.4952232414,-99.1195023109",{"type":"Point","coordinates":[-99.119502,19.495223]},"Indios Verdes","Linea 3",-99.1195023109161,19.4952232414193,"Linea 3-Indios Verdes"],[{"type":"Feature","properties":{"_id":158,"id":157,"g_pnt_2":"19.4850214378,-99.1255506931","geo_shp":{"type":"Point","coordinates":[-99.125551,19.485021]},"name":"Deptvo. 18 de Marzo","descrpt":"Linea 3","lon":-99.1255506930743,"lat":19.4850214378189,"line_st":"Linea 3-Deportivo 18 de Marzo"},"geometry":{"type":"Point","coordinates":[-99.1255506930743,19.485021437818865]}},158,157,"19.4850214378,-99.1255506931",{"type":"Point","coordinates":[-99.125551,19.485021]},"Deptvo. 18 de Marzo","Linea 3",-99.1255506930743,19.4850214378189,"Linea 3-Deportivo 18 de Marzo"],[{"type":"Feature","properties":{"_id":159,"id":158,"g_pnt_2":"19.4769786967,-99.1321801174","geo_shp":{"type":"Point","coordinates":[-99.13218,19.476979]},"name":"Potrero","descrpt":"Linea 3","lon":-99.1321801174295,"lat":19.4769786966682,"line_st":"Linea 3-Potrero"},"geometry":{"type":"Point","coordinates":[-99.13218011742946,19.47697869666817]}},159,158,"19.4769786967,-99.1321801174",{"type":"Point","coordinates":[-99.13218,19.476979]},"Potrero","Linea 3",-99.1321801174295,19.4769786966682,"Linea 3-Potrero"],[{"type":"Feature","properties":{"_id":160,"id":159,"g_pnt_2":"19.4370117686,-99.1468788132","geo_shp":{"type":"Point","coordinates":[-99.146879,19.437012]},"name":"Hidalgo","descrpt":"Linea 3","lon":-99.1468788132308,"lat":19.4370117685873,"line_st":"Linea 3-Hidalgo"},"geometry":{"type":"Point","coordinates":[-99.14687881323076,19.437011768587308]}},160,159,"19.4370117686,-99.1468788132",{"type":"Point","coordinates":[-99.146879,19.437012]},"Hidalgo","Linea 3",-99.1468788132308,19.4370117685873,"Linea 3-Hidalgo"],[{"type":"Feature","properties":{"_id":161,"id":160,"g_pnt_2":"19.4270307325,-99.1490158302","geo_shp":{"type":"Point","coordinates":[-99.149016,19.427031]},"name":"Balderas","descrpt":"Linea 3","lon":-99.1490158302166,"lat":19.4270307325264,"line_st":"Linea 3-Balderas"},"geometry":{"type":"Point","coordinates":[-99.1490158302166,19.427030732526415]}},161,160,"19.4270307325,-99.1490158302",{"type":"Point","coordinates":[-99.149016,19.427031]},"Balderas","Linea 3",-99.1490158302166,19.4270307325264,"Linea 3-Balderas"],[{"type":"Feature","properties":{"_id":162,"id":161,"g_pnt_2":"19.4075629285,-99.1550980831","geo_shp":{"type":"Point","coordinates":[-99.155098,19.407563]},"name":"Centro Médico","descrpt":"Linea 3","lon":-99.1550980831166,"lat":19.4075629285433,"line_st":"Linea 3-Centro Médico"},"geometry":{"type":"Point","coordinates":[-99.15509808311658,19.40756292854328]}},162,161,"19.4075629285,-99.1550980831",{"type":"Point","coordinates":[-99.155098,19.407563]},"Centro Médico","Linea 3",-99.1550980831166,19.4075629285433,"Linea 3-Centro Médico"],[{"type":"Feature","properties":{"_id":163,"id":162,"g_pnt_2":"19.3798049376,-99.1589939539","geo_shp":{"type":"Point","coordinates":[-99.158994,19.379805]},"name":"División del Norte","descrpt":"Linea 3","lon":-99.1589939538982,"lat":19.37980493762,"line_st":"Linea 3-División del Norte"},"geometry":{"type":"Point","coordinates":[-99.15899395389822,19.379804937619976]}},163,162,"19.3798049376,-99.1589939539",{"type":"Point","coordinates":[-99.158994,19.379805]},"División del Norte","Linea 3",-99.1589939538982,19.37980493762,"Linea 3-División del Norte"],[{"type":"Feature","properties":{"_id":164,"id":163,"g_pnt_2":"19.3613975505,-99.1708661037","geo_shp":{"type":"Point","coordinates":[-99.170866,19.361398]},"name":"Coyoacán","descrpt":"Linea 3","lon":-99.1708661036567,"lat":19.3613975505106,"line_st":"Linea 3-Coyoacán"},"geometry":{"type":"Point","coordinates":[-99.1708661036567,19.361397550510645]}},164,163,"19.3613975505,-99.1708661037",{"type":"Point","coordinates":[-99.170866,19.361398]},"Coyoacán","Linea 3",-99.1708661036567,19.3613975505106,"Linea 3-Coyoacán"],[{"type":"Feature","properties":{"_id":165,"id":164,"g_pnt_2":"19.3244054114,-99.1739130713","geo_shp":{"type":"Point","coordinates":[-99.173913,19.324405]},"name":"Universidad","descrpt":"Linea 3","lon":-99.1739130713296,"lat":19.3244054114325,"line_st":"Linea 3-Universidad"},"geometry":{"type":"Point","coordinates":[-99.1739130713296,19.324405411432487]}},165,164,"19.3244054114,-99.1739130713",{"type":"Point","coordinates":[-99.173913,19.324405]},"Universidad","Linea 3",-99.1739130713296,19.3244054114325,"Linea 3-Universidad"]],"fields":[{"name":"_geojson","type":"geojson","format":"","analyzerType":"GEOMETRY"},{"name":"_id","type":"integer","format":"","analyzerType":"INT"},{"name":"id","type":"integer","format":"","analyzerType":"INT"},{"name":"g_pnt_2","type":"geojson","format":"","analyzerType":"PAIR_GEOMETRY_FROM_STRING"},{"name":"geo_shp","type":"geojson","format":"","analyzerType":"GEOMETRY"},{"name":"name","type":"string","format":"","analyzerType":"STRING"},{"name":"descrpt","type":"string","format":"","analyzerType":"STRING"},{"name":"lon","type":"real","format":"","analyzerType":"FLOAT"},{"name":"lat","type":"real","format":"","analyzerType":"FLOAT"},{"name":"line_st","type":"string","format":"","analyzerType":"STRING"}]}}];
+            const config = {"version":"v1","config":{"visState":{"filters":[],"layers":[{"id":"f48gspf","type":"point","config":{"dataId":"i62x82dq8","label":"Precio promedio de venta de casas","color":[34,63,154],"highlightColor":[252,242,26,255],"columns":{"lat":"LAT","lng":"LONG","altitude":null},"isVisible":true,"visConfig":{"radius":30,"fixedRadius":false,"opacity":0.8,"outline":false,"thickness":2,"strokeColor":null,"colorRange":{"name":"ColorBrewer OrRd-6","type":"sequential","category":"ColorBrewer","colors":["#fef0d9","#fdd49e","#fdbb84","#fc8d59","#e34a33","#b30000"]},"strokeColorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#5A1846","#900C3F","#C70039","#E3611C","#F1920E","#FFC300"]},"radiusRange":[30,80],"filled":true},"hidden":false,"textLabel":[{"field":{"name":"ESTACIÓN","type":"string"},"color":[255,255,255],"size":18,"offset":[0,0],"anchor":"end","alignment":"center"},{"field":{"name":"RENTA PROMEDIO","type":"integer"},"color":[255,255,255],"size":18,"offset":[0,0],"anchor":"start","alignment":"center"}]},"visualChannels":{"colorField":{"name":"RENTA PROMEDIO","type":"integer"},"colorScale":"quantile","strokeColorField":null,"strokeColorScale":"quantile","sizeField":{"name":"RENTA PROMEDIO","type":"integer"},"sizeScale":"sqrt"}},{"id":"nrhsns3g","type":"point","config":{"dataId":"ptgyyrmzm","label":"Point","color":[30,150,190],"highlightColor":[252,242,26,255],"columns":{"lat":"lat","lng":"lon","altitude":null},"isVisible":true,"visConfig":{"radius":10,"fixedRadius":false,"opacity":0.8,"outline":false,"thickness":2,"strokeColor":null,"colorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#5A1846","#900C3F","#C70039","#E3611C","#F1920E","#FFC300"]},"strokeColorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#5A1846","#900C3F","#C70039","#E3611C","#F1920E","#FFC300"]},"radiusRange":[0,50],"filled":true},"hidden":false,"textLabel":[{"field":null,"color":[255,255,255],"size":18,"offset":[0,0],"anchor":"start","alignment":"center"}]},"visualChannels":{"colorField":null,"colorScale":"quantile","strokeColorField":null,"strokeColorScale":"quantile","sizeField":null,"sizeScale":"linear"}},{"id":"p9gabi","type":"geojson","config":{"dataId":"aay4s7psok","label":"Línea 3","color":[130,154,227],"highlightColor":[252,242,26,255],"columns":{"geojson":"_geojson"},"isVisible":true,"visConfig":{"opacity":0.8,"strokeOpacity":0.8,"thickness":0.5,"strokeColor":null,"colorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#5A1846","#900C3F","#C70039","#E3611C","#F1920E","#FFC300"]},"strokeColorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#5A1846","#900C3F","#C70039","#E3611C","#F1920E","#FFC300"]},"radius":10,"sizeRange":[0,10],"radiusRange":[0,50],"heightRange":[0,500],"elevationScale":5,"enableElevationZoomFactor":true,"stroked":true,"filled":false,"enable3d":false,"wireframe":false},"hidden":false,"textLabel":[{"field":null,"color":[255,255,255],"size":18,"offset":[0,0],"anchor":"start","alignment":"center"}]},"visualChannels":{"colorField":null,"colorScale":"quantile","strokeColorField":null,"strokeColorScale":"quantile","sizeField":null,"sizeScale":"linear","heightField":null,"heightScale":"linear","radiusField":null,"radiusScale":"linear"}}],"interactionConfig":{"tooltip":{"fieldsToShow":{"i62x82dq8":[{"name":"ESTACIÓN","format":null},{"name":"ALCALDIAS","format":null},{"name":"COLONIA","format":null},{"name":"LAT","format":null},{"name":"LONG","format":null}],"aay4s7psok":[{"name":"_id","format":null},{"name":"id","format":null},{"name":"name","format":null},{"name":"descrpt","format":null},{"name":"altitdm","format":null}],"ptgyyrmzm":[{"name":"_id","format":null},{"name":"id","format":null},{"name":"name","format":null},{"name":"descrpt","format":null},{"name":"line_st","format":null}]},"compareMode":false,"compareType":"absolute","enabled":true},"brush":{"size":0.5,"enabled":false},"geocoder":{"enabled":false},"coordinate":{"enabled":false}},"layerBlending":"normal","splitMaps":[],"animationConfig":{"currentTime":null,"speed":1}},"mapState":{"bearing":0,"dragRotate":false,"latitude":19.411154336292523,"longitude":-99.18910563000867,"pitch":0,"zoom":10.883568732472416,"isSplit":false},"mapStyle":{"styleType":"dark","topLayerGroups":{},"visibleLayerGroups":{"label":true,"road":true,"border":false,"building":true,"water":true,"land":true,"3d building":false},"threeDBuildingColor":[9.665468314072013,17.18305478057247,31.1442867897876],"mapStyles":{}}}};
+
+            const loadedData = keplerGl.KeplerGlSchema.load(
+              datasets,
+              config
+            );
+
+            store.dispatch(keplerGl.addDataToMap({
+              datasets: loadedData.datasets,
+              config: loadedData.config,
+              options: {
+                centerMap: false
+              }
+            }));
+          }(KeplerGl, store))
+        </script>
+      </body>
+    </html>
+  
